@@ -1,6 +1,4 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { Card } from '@/components/ui/card'
@@ -10,19 +8,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Settings, ShieldCheck, Users, History, Check, X, Lock, KeyRound } from 'lucide-react'
 import { ROLE_LABELS, RBAC, MODULES, type ModuleName } from '@/shared/lib/rbac'
 import { fmtDateTime, cn } from '@/shared/lib/format'
+import { useUsers, useAuditLog } from '@/shared/services/mutations'
 import type { Role, User } from '@/shared/types'
 
 export function SettingsModule() {
-  const [users, setUsers] = useState<User[]>([])
-  const [audit, setAudit] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([api.users(), api.audit()])
-      .then(([u, a]) => { setUsers(u); setAudit(a) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: users = [], isLoading: loadingUsers } = useUsers()
+  const { data: audit = [], isLoading: loadingAudit } = useAuditLog()
+  const loading = loadingUsers || loadingAudit
 
   const userColumns: Column<User>[] = [
     {

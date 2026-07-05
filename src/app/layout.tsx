@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/shared/components/theme-provider";
 import { QueryProvider } from "@/shared/components/query-provider";
+import { ServiceWorkerRegister } from "@/shared/components/sw-register";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -23,8 +24,14 @@ export const metadata: Metadata = {
   description: "FMCG manufacturing & distribution operating system for Rise Foods. Dashboard, CRM, Inventory, Procurement, Sales, Finance, Analytics.",
   keywords: ["ERP", "CRM", "FMCG", "Rise Foods", "Inventory", "Procurement", "Gorakhpur"],
   authors: [{ name: "Rise Foods" }],
-  icons: { icon: "/logo.svg" },
-};
+  icons: { icon: "/icon.svg" },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Rise Foods ERP",
+    statusBarStyle: "default",
+  },
+}
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -35,6 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             {children}
             <Toaster />
             <SonnerToaster position="top-right" richColors closeButton />
+            <ServiceWorkerRegister />
           </QueryProvider>
         </ThemeProvider>
       </body>

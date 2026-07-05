@@ -1,6 +1,4 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { KPICard } from '@/shared/components/kpi-card'
@@ -11,19 +9,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Truck, ShoppingCart, IndianRupee, Star, Plus, Download, Phone, Clock, TrendingUp } from 'lucide-react'
 import { fmtINR, fmtDate, fmtNumber, exportCSV } from '@/shared/lib/format'
+import { useSuppliers, usePurchaseOrders } from '@/shared/services/mutations'
 import type { Supplier, PurchaseOrder } from '@/shared/types'
 
 export function ProcurementModule() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [pos, setPOs] = useState<PurchaseOrder[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([api.suppliers(), api.purchaseOrders()])
-      .then(([s, p]) => { setSuppliers(s); setPOs(p) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: suppliers = [], isLoading: loadingSup } = useSuppliers()
+  const { data: pos = [], isLoading: loadingPOs } = usePurchaseOrders()
+  const loading = loadingSup || loadingPOs
 
   const totalSpent = pos.reduce((s, p) => s + p.total, 0)
   const pending = pos.filter((p) => p.status === 'sent' || p.status === 'partial').length

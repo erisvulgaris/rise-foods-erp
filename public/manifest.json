@@ -1,0 +1,25 @@
+{
+  "name": "Rise Foods ERP — Operating System",
+  "short_name": "Rise Foods ERP",
+  "description": "FMCG manufacturing & distribution operating system for Rise Foods",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "any",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/?view=dashboard" },
+    { "name": "New Order", "url": "/?view=sales&action=new" },
+    { "name": "Customers", "url": "/?view=crm" },
+    { "name": "Inventory", "url": "/?view=inventory" }
+  ]
+}

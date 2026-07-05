@@ -1,24 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { KPICard } from '@/shared/components/kpi-card'
 import { Card } from '@/components/ui/card'
 import { Badge, StatusBadge } from '@/shared/components/status-badge'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Factory, Package, TrendingDown, Activity, Settings as SettingsIcon, Gauge, Boxes } from 'lucide-react'
 import { fmtINR, fmtDate, fmtNumber } from '@/shared/lib/format'
 import { BarChartCard, RadialProgress } from '@/shared/components/charts'
+import { useProductionBatches } from '@/shared/services/mutations'
 import type { ProductionBatch } from '@/shared/types'
 
 export function ProductionModule() {
-  const [batches, setBatches] = useState<ProductionBatch[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.productionBatches().then(setBatches).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { data: batches = [], isLoading: loading } = useProductionBatches()
 
   const avgYield = batches.length ? batches.reduce((s, b) => s + b.yieldPercent, 0) / batches.length : 0
   const avgLoss = batches.length ? batches.reduce((s, b) => s + b.lossPercent, 0) / batches.length : 0

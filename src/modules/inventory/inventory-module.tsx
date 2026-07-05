@@ -1,6 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
+import { useState } from 'react'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { KPICard } from '@/shared/components/kpi-card'
@@ -8,21 +7,18 @@ import { Badge, StatusBadge } from '@/shared/components/status-badge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Warehouse, Boxes, AlertTriangle, Calendar, Download, Plus, PackageCheck, TrendingDown } from 'lucide-react'
+import { Warehouse, Boxes, AlertTriangle, Calendar, Download, Plus, PackageCheck, TrendingDown, Sparkles, RefreshCw } from 'lucide-react'
 import { fmtINR, fmtNumber, fmtDate, exportCSV, abcColor, daysUntil, cn } from '@/shared/lib/format'
+import { useInventory, useBatches, useReorderSuggestions, useGenerateInsights, useGenerateNotifications } from '@/shared/services/mutations'
 import type { Inventory, Batch } from '@/shared/types'
 
 export function InventoryModule() {
-  const [inventory, setInventory] = useState<Inventory[]>([])
-  const [batches, setBatches] = useState<Batch[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([api.inventory(), api.batches()])
-      .then(([i, b]) => { setInventory(i); setBatches(b) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: inventory = [], isLoading: loadingInv } = useInventory()
+  const { data: batches = [], isLoading: loadingBatches } = useBatches()
+  const { data: reorder } = useReorderSuggestions()
+  const genInsights = useGenerateInsights()
+  const genNotifs = useGenerateNotifications()
+  const loading = loadingInv || loadingBatches
 
   const totalValue = inventory.reduce((s, i) => s + i.valuation, 0)
   const lowStock = inventory.filter((i) => i.currentStock <= i.reorderLevel)
@@ -161,6 +157,9 @@ export function InventoryModule() {
           <TabsTrigger value="stock">Stock Levels ({inventory.length})</TabsTrigger>
           <TabsTrigger value="batches">Batches ({batches.length})</TabsTrigger>
           <TabsTrigger value="alerts">Alerts ({lowStock.length + expiringSoon.length + expired.length})</TabsTrigger>
+          <TabsTrigger value="reorder">
+            <Sparkles className="h-3 w-3" /> AI Reorder ({reorder?.suggestions.length ?? 0})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="stock" className="mt-4">
@@ -252,6 +251,93 @@ export function InventoryModule() {
                 ))}
               </div>
             </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reorder" className="mt-4 space-y-4">
+          {reorder ? (
+            <>
+              <Card className="p-5 shadow-soft border-primary/30">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold">AI-Powered Reorder Suggestions</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Based on 30-day sales velocity, days of cover, ABC class, and lead-time buffer.
+                        {reorder.criticalCount > 0 && <span className="text-rose-600 font-medium ml-1">· {reorder.criticalCount} critical</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Total Reorder Cost</p>
+                    <p className="text-lg font-semibold tabular-nums">{fmtINR(reorder.totalReorderCost, true)}</p>
+                    <div className="flex gap-1 mt-2">
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => genInsights.mutate()} disabled={genInsights.isPending}>
+                        <RefreshCw className="h-3 w-3" /> Regenerate Insights
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => genNotifs.mutate()} disabled={genNotifs.isPending}>
+                        <RefreshCw className="h-3 w-3" /> Refresh Alerts
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {reorder.suggestions.length === 0 ? (
+                <Card className="p-8 shadow-soft">
+                  <div className="text-center">
+                    <PackageCheck className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium">All stock levels healthy</p>
+                    <p className="text-xs text-muted-foreground mt-1">No reorders needed at this time</p>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="p-0 shadow-soft overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/40">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Product</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium uppercase text-muted-foreground">ABC</th>
+                        <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Stock</th>
+                        <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Velocity/day</th>
+                        <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Days Cover</th>
+                        <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Suggested Qty</th>
+                        <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Est. Cost</th>
+                        <th className="text-center px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Urgency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reorder.suggestions.map((s: any) => (
+                        <tr key={s.productId} className="border-t hover:bg-muted/30">
+                          <td className="px-3 py-2.5">
+                            <p className="text-sm font-medium">{s.productName}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{s.sku} · {s.packagingSize} · {s.warehouse}</p>
+                          </td>
+                          <td className="text-center"><span className={abcColor(s.abcClass)}>{s.abcClass}</span></td>
+                          <td className="text-right tabular-nums">{s.currentStock} <span className="text-xs text-muted-foreground">+{s.incomingStock}</span></td>
+                          <td className="text-right tabular-nums text-xs">{s.dailyVelocity.toFixed(1)}</td>
+                          <td className="text-right">
+                            <span className={cn('tabular-nums font-medium', s.daysOfCover < 7 ? 'text-rose-600' : s.daysOfCover < 14 ? 'text-amber-600' : '')}>{s.daysOfCover}d</span>
+                          </td>
+                          <td className="text-right tabular-nums font-medium">{s.reorderQty}</td>
+                          <td className="text-right tabular-nums">{fmtINR(s.estimatedCost, true)}</td>
+                          <td className="text-center">
+                            <Badge variant={s.urgency === 'critical' ? 'danger' : s.urgency === 'high' ? 'warning' : s.urgency === 'medium' ? 'info' : 'success'}>
+                              {s.urgency}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              )}
+            </>
+          ) : (
+            <Card className="p-8 shadow-soft"><div className="h-32 shimmer rounded" /></Card>
           )}
         </TabsContent>
       </Tabs>

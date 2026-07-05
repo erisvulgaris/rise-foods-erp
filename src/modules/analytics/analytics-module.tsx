@@ -1,6 +1,4 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
 import { PageHeader } from '@/shared/components/page-header'
 import { KPICard } from '@/shared/components/kpi-card'
 import { Card } from '@/components/ui/card'
@@ -9,14 +7,10 @@ import { BarChart3, TrendingUp, MapPin, Trophy, Activity, Calendar, Target, Zap,
 import { fmtINR, fmtNumber, cn } from '@/shared/lib/format'
 import { AreaChartCard, BarChartCard, HorizontalBarChart, DonutChart, HeatmapGrid, RadarChartCard, RadialProgress, LineChartCard, ComposedChartCard } from '@/shared/components/charts'
 import { ChartSkeleton } from '@/shared/components/loading-states'
+import { useAnalytics } from '@/shared/services/mutations'
 
 export function AnalyticsModule() {
-  const [data, setData] = useState<Awaited<ReturnType<typeof api.analytics>> | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.analytics().then(setData).catch(() => {}).finally(() => setLoading(false))
-  }, [])
+  const { data, isLoading: loading } = useAnalytics()
 
   if (loading || !data) {
     return (

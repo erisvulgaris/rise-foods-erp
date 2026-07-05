@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { FormDrawer, Field, FormGrid } from '@/shared/components/form-drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,37 +24,34 @@ const empty = {
 }
 
 export function CustomerFormDrawer({ open, onOpenChange, editing }: Props) {
+  // remount inner form on editing change so initial state resets cleanly
+  return <FormDrawerInner key={editing?.id ?? 'new'} open={open} onOpenChange={onOpenChange} editing={editing} />
+}
+
+function FormDrawerInner({ open, onOpenChange, editing }: Props) {
   const { data: users = [] } = useUsers()
   const salesmen = users.filter((u: any) => u.role === 'salesman' || u.role === 'sales_manager')
   const create = useCreateCustomer()
   const update = useUpdateCustomer()
-  const [form, setForm] = useState(empty)
-
-  useEffect(() => {
-    if (editing) {
-      setForm({
-        businessName: editing.businessName,
-        ownerName: editing.ownerName ?? '',
-        phone: editing.phone,
-        alternatePhone: editing.alternatePhone ?? '',
-        email: editing.email ?? '',
-        gst: editing.gst ?? '',
-        fssai: editing.fssai ?? '',
-        address: editing.address,
-        district: editing.district,
-        area: editing.area,
-        pin: editing.pin ?? '',
-        type: editing.type,
-        salesmanId: editing.salesmanId ?? '',
-        creditLimit: editing.creditLimit,
-        creditDays: editing.creditDays,
-        status: editing.status,
-        notes: editing.notes ?? '',
-      })
-    } else {
-      setForm(empty)
-    }
-  }, [editing, open])
+  const [form, setForm] = useState(editing ? {
+    businessName: editing.businessName,
+    ownerName: editing.ownerName ?? '',
+    phone: editing.phone,
+    alternatePhone: editing.alternatePhone ?? '',
+    email: editing.email ?? '',
+    gst: editing.gst ?? '',
+    fssai: editing.fssai ?? '',
+    address: editing.address,
+    district: editing.district,
+    area: editing.area,
+    pin: editing.pin ?? '',
+    type: editing.type,
+    salesmanId: editing.salesmanId ?? '',
+    creditLimit: editing.creditLimit,
+    creditDays: editing.creditDays,
+    status: editing.status,
+    notes: editing.notes ?? '',
+  } : empty)
 
   const set = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }))
 

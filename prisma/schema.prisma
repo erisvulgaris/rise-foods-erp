@@ -215,6 +215,7 @@ model Warehouse {
   racks     Rack[]
   inventory Inventory[]
   batches   Batch[]
+  purchaseOrders PurchaseOrder[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -343,6 +344,7 @@ model PurchaseOrder {
   supplierId    String
   supplier      Supplier @relation(fields: [supplierId], references: [id])
   warehouseId   String
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
   status        String   @default("draft") // draft | sent | partial | received | closed | cancelled
   subtotal      Float    @default(0)
   tax           Float    @default(0)

@@ -1,13 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
+import { useState } from 'react'
 import { PageHeader } from '@/shared/components/page-header'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/shared/components/status-badge'
 import { FileText, Download, FileSpreadsheet, File as FileIcon, Calendar, IndianRupee, TrendingUp, Package, Users, ShoppingCart } from 'lucide-react'
 import { exportCSV, exportJSON, fmtINR } from '@/shared/lib/format'
-import { useApp } from '@/shared/lib/store'
+import { useSalesOrders, useCustomers, useProducts, useInventory, useSuppliers, usePurchaseOrders, useExpenses, usePNL } from '@/shared/services/mutations'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 
@@ -25,16 +24,15 @@ const REPORTS = [
 
 export function ReportsModule() {
   const { toast } = useToast()
-  const [data, setData] = useState<any>({})
-
-  useEffect(() => {
-    Promise.all([
-      api.salesOrders(), api.customers(), api.products(), api.inventory(),
-      api.suppliers(), api.purchaseOrders(), api.expenses(), api.pnl(),
-    ]).then(([o, c, p, i, s, po, e, pnl]) => {
-      setData({ orders: o, customers: c, products: p, inventory: i, suppliers: s, pos: po, expenses: e, pnl })
-    }).catch(() => {})
-  }, [])
+  const { data: orders = [] } = useSalesOrders()
+  const { data: customers = [] } = useCustomers()
+  const { data: products = [] } = useProducts()
+  const { data: inventory = [] } = useInventory()
+  const { data: suppliers = [] } = useSuppliers()
+  const { data: pos = [] } = usePurchaseOrders()
+  const { data: expenses = [] } = useExpenses()
+  const { data: pnl } = usePNL()
+  const data = { orders, customers, products, inventory, suppliers, pos, expenses, pnl }
 
   const exportReport = (id: string, format: 'csv' | 'json') => {
     const report = REPORTS.find((r) => r.id === id)!

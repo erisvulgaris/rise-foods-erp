@@ -1,6 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { api } from '@/shared/services/api'
+import { useState } from 'react'
 import { KPICard } from '@/shared/components/kpi-card'
 import { PageHeader } from '@/shared/components/page-header'
 import { CardSkeleton, ChartSkeleton } from '@/shared/components/loading-states'
@@ -11,26 +10,18 @@ import { AreaChartCard, BarChartCard, DonutChart, HorizontalBarChart, LineChartC
 import {
   LayoutDashboard, IndianRupee, TrendingUp, Wallet, AlertTriangle, Package,
   ShoppingCart, Users, Target, Trophy, Activity, Zap, ArrowRight, Sparkles,
-  AlertCircle, CheckCircle2, Info, TrendingDown, Calendar, Download,
+  AlertCircle, CheckCircle2, Info, TrendingDown, Calendar, Download, RefreshCw,
 } from 'lucide-react'
-import { fmtINR, fmtINR2, fmtNumber, fmtRelative, fmtPercent } from '@/shared/lib/format'
-import { exportCSV } from '@/shared/lib/format'
+import { fmtINR, fmtINR2, fmtNumber, fmtRelative, fmtPercent, exportCSV } from '@/shared/lib/format'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { DashboardKPIs, ChartPoint, SeriesPoint, AIInsight } from '@/shared/types'
+import { useDashboard, useInsights, useGenerateInsights } from '@/shared/services/mutations'
 
 export function DashboardModule() {
-  const [data, setData] = useState<Awaited<ReturnType<typeof api.dashboard>> | null>(null)
-  const [insights, setInsights] = useState<AIInsight[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading: loading } = useDashboard()
+  const { data: insights = [], refetch } = useInsights()
+  const genInsights = useGenerateInsights()
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d')
-
-  useEffect(() => {
-    Promise.all([api.dashboard(), api.insights()])
-      .then(([d, i]) => { setData(d); setInsights(i) })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
 
   if (loading || !data) {
     return (
@@ -91,7 +82,7 @@ export function DashboardModule() {
       </div>
 
       {/* AI Insight banner */}
-      <AIInsightBanner insights={insights} />
+      <AIInsightBanner insights={insights} onRegenerate={() => genInsights.mutate()} regenerating={genInsights.isPending} />
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -270,7 +261,7 @@ export function DashboardModule() {
   )
 }
 
-function AIInsightBanner({ insights }: { insights: AIInsight[] }) {
+function AIInsightBanner({ insights, onRegenerate, regenerating }: { insights: any[]; onRegenerate?: () => void; regenerating?: boolean }) {
   const [idx, setIdx] = useState(0)
   if (!insights.length) return null
   const top = insights[idx % insights.length]
@@ -308,6 +299,11 @@ function AIInsightBanner({ insights }: { insights: AIInsight[] }) {
         )}
       </div>
       <div className="flex items-center gap-1 shrink-0">
+        {onRegenerate && (
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onRegenerate} disabled={regenerating}>
+            <RefreshCw className={`h-3 w-3 ${regenerating ? 'animate-spin' : ''}`} /> {regenerating ? 'Generating...' : 'Regenerate'}
+          </Button>
+        )}
         <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setIdx((i) => i + 1)}>
           Next <ArrowRight className="h-3 w-3" />
         </Button>
