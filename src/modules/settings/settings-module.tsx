@@ -1,20 +1,25 @@
 'use client'
+import { useState } from 'react'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge, StatusBadge } from '@/shared/components/status-badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Settings, ShieldCheck, Users, History, Check, X, Lock, KeyRound } from 'lucide-react'
+import { Settings, ShieldCheck, Users, History, Check, X, Lock, KeyRound, UserPlus } from 'lucide-react'
 import { ROLE_LABELS, RBAC, MODULES, type ModuleName } from '@/shared/lib/rbac'
 import { fmtDateTime, cn } from '@/shared/lib/format'
 import { useUsers, useAuditLog } from '@/shared/services/mutations'
+import { UserFormDrawer } from './user-form-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { Role, User } from '@/shared/types'
 
 export function SettingsModule() {
   const { data: users = [], isLoading: loadingUsers } = useUsers()
   const { data: audit = [], isLoading: loadingAudit } = useAuditLog()
   const loading = loadingUsers || loadingAudit
+  const [userOpen, setUserOpen] = useState(false)
 
   const userColumns: Column<User>[] = [
     {
@@ -89,6 +94,11 @@ export function SettingsModule() {
         description="Users, roles, RBAC matrix, audit log"
         icon={Settings}
         accent="violet"
+        actions={
+          <Can module="settings" action="create">
+            <Button size="sm" onClick={() => setUserOpen(true)}><UserPlus className="h-4 w-4" /> Add User</Button>
+          </Can>
+        }
       />
 
       <Tabs defaultValue="users">
@@ -177,6 +187,8 @@ export function SettingsModule() {
           </div>
         </div>
       </Card>
+
+      <UserFormDrawer open={userOpen} onOpenChange={setUserOpen} />
     </div>
   )
 }

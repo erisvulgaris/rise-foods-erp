@@ -21,6 +21,7 @@ import {
   useCustomers, useCustomer, useCustomerTimeline, useCustomerOrders,
   useDeleteCustomer, useAddTimelineEntry,
 } from '@/shared/services/mutations'
+import { usePermission, Can } from '@/shared/hooks/use-permission'
 import { CustomerFormDrawer } from './customer-form-drawer'
 import { TimelineEntryDrawer } from './timeline-entry-drawer'
 import { PaymentDrawer } from '@/modules/finance/payment-drawer'
@@ -109,23 +110,31 @@ function CustomerList() {
       key: 'actions', header: '', align: 'right',
       cell: (c) => (
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setPaymentFor(c.id)}>
-            <IndianRupee className="h-3 w-3" /> Payment
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">⋯</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => { setEditing(c); setFormOpen(true) }}>Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.open(`/api/customers/${c.id}/statement`, '_blank')}>Print Statement</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setPaymentFor(c.id) }}>Record Payment</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-rose-600" onClick={() => { if (confirm(`Delete ${c.businessName}?`)) deleteCustomer.mutate(c.id) }}>
-                <Trash2 className="h-3 w-3" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Can module="finance" action="create">
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setPaymentFor(c.id)}>
+              <IndianRupee className="h-3 w-3" /> Payment
+            </Button>
+          </Can>
+          <Can module="crm" action="edit" fallback={
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); window.open(`/api/customers/${c.id}/statement`, '_blank') }}>
+              <FileText className="h-3 w-3" />
+            </Button>
+          }>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">⋯</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setEditing(c); setFormOpen(true) }}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.open(`/api/customers/${c.id}/statement`, '_blank')}>Print Statement</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPaymentFor(c.id) }}>Record Payment</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-rose-600" onClick={() => { if (confirm(`Delete ${c.businessName}?`)) deleteCustomer.mutate(c.id) }}>
+                  <Trash2 className="h-3 w-3" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Can>
         </div>
       ),
     },
@@ -143,7 +152,9 @@ function CustomerList() {
             <Button variant="outline" size="sm" onClick={() => exportCSV('customers.csv', customers as any)}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true) }}><UserPlus className="h-4 w-4" /> Add Customer</Button>
+            <Can module="crm" action="create">
+              <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true) }}><UserPlus className="h-4 w-4" /> Add Customer</Button>
+            </Can>
           </div>
         }
       />

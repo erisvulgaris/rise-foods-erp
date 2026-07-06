@@ -1,17 +1,22 @@
 'use client'
+import { useState } from 'react'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { KPICard } from '@/shared/components/kpi-card'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge, StatusBadge } from '@/shared/components/status-badge'
-import { Factory, Package, TrendingDown, Activity, Settings as SettingsIcon, Gauge, Boxes } from 'lucide-react'
+import { Factory, Package, TrendingDown, Activity, Settings as SettingsIcon, Gauge, Boxes, Plus } from 'lucide-react'
 import { fmtINR, fmtDate, fmtNumber } from '@/shared/lib/format'
 import { BarChartCard, RadialProgress } from '@/shared/components/charts'
 import { useProductionBatches } from '@/shared/services/mutations'
+import { ProductionBatchDrawer } from './production-batch-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { ProductionBatch } from '@/shared/types'
 
 export function ProductionModule() {
   const { data: batches = [], isLoading: loading } = useProductionBatches()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const avgYield = batches.length ? batches.reduce((s, b) => s + b.yieldPercent, 0) / batches.length : 0
   const avgLoss = batches.length ? batches.reduce((s, b) => s + b.lossPercent, 0) / batches.length : 0
@@ -77,6 +82,11 @@ export function ProductionModule() {
         description="Batch tracking, yield, loss %, machine, operator, downtime"
         icon={Factory}
         accent="warning"
+        actions={
+          <Can module="production" action="create">
+            <Button size="sm" onClick={() => setDrawerOpen(true)}><Plus className="h-4 w-4" /> New Batch</Button>
+          </Can>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -99,6 +109,8 @@ export function ProductionModule() {
       </Card>
 
       <DataTable data={batches} columns={columns} loading={loading} pageSize={10} searchPlaceholder="Search batches..." />
+
+      <ProductionBatchDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   )
 }

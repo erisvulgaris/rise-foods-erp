@@ -83,7 +83,7 @@ export function SearchPalette() {
                     <p className="text-sm font-medium">{item.label}</p>
                     <p className="text-xs text-muted-foreground">{item.desc}</p>
                   </div>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <kbd className="text-[10px] px-1 py-0.5 rounded border bg-muted text-muted-foreground uppercase">{item.id[0]}</kbd>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -93,6 +93,7 @@ export function SearchPalette() {
                 <CommandItem key={a.id} onSelect={() => setSearchOpen(false)} className="py-2">
                   <a.icon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">{a.label}</span>
+                  {a.id === 'new-order' && <kbd className="ml-auto text-[10px] px-1 py-0.5 rounded border bg-muted text-muted-foreground uppercase">N</kbd>}
                 </CommandItem>
               ))}
             </CommandGroup>

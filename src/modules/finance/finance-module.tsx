@@ -13,6 +13,7 @@ import { BarChartCard, AreaChartCard, DonutChart } from '@/shared/components/cha
 import { useExpenses, useBankAccounts, usePNL } from '@/shared/services/mutations'
 import { ExpenseDrawer } from './expense-drawer'
 import { PaymentDrawer } from './payment-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { Expense } from '@/shared/types'
 
 export function FinanceModule() {
@@ -53,8 +54,10 @@ export function FinanceModule() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => exportCSV('expenses.csv', expenses as any)}><Download className="h-4 w-4" /> Export</Button>
-            <Button variant="outline" size="sm" onClick={() => setPaymentOpen(true)}><Receipt className="h-4 w-4" /> Record Payment</Button>
-            <Button size="sm" onClick={() => setExpenseOpen(true)}><Plus className="h-4 w-4" /> Add Expense</Button>
+            <Can module="finance" action="create">
+              <Button variant="outline" size="sm" onClick={() => setPaymentOpen(true)}><Receipt className="h-4 w-4" /> Record Payment</Button>
+              <Button size="sm" onClick={() => setExpenseOpen(true)}><Plus className="h-4 w-4" /> Add Expense</Button>
+            </Can>
           </div>
         }
       />

@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { PageHeader } from '@/shared/components/page-header'
 import { DataTable, type Column } from '@/shared/components/data-table'
 import { KPICard } from '@/shared/components/kpi-card'
@@ -7,15 +8,20 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Truck, ShoppingCart, IndianRupee, Star, Plus, Download, Phone, Clock, TrendingUp } from 'lucide-react'
+import { Truck, ShoppingCart, IndianRupee, Star, Plus, Download, Phone, Clock, TrendingUp, UserPlus } from 'lucide-react'
 import { fmtINR, fmtDate, fmtNumber, exportCSV } from '@/shared/lib/format'
 import { useSuppliers, usePurchaseOrders } from '@/shared/services/mutations'
+import { NewPODrawer } from './new-po-drawer'
+import { SupplierFormDrawer } from './supplier-form-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { Supplier, PurchaseOrder } from '@/shared/types'
 
 export function ProcurementModule() {
   const { data: suppliers = [], isLoading: loadingSup } = useSuppliers()
   const { data: pos = [], isLoading: loadingPOs } = usePurchaseOrders()
   const loading = loadingSup || loadingPOs
+  const [poOpen, setPoOpen] = useState(false)
+  const [supplierOpen, setSupplierOpen] = useState(false)
 
   const totalSpent = pos.reduce((s, p) => s + p.total, 0)
   const pending = pos.filter((p) => p.status === 'sent' || p.status === 'partial').length
@@ -126,7 +132,10 @@ export function ProcurementModule() {
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => exportCSV('purchase-orders.csv', pos as any)}><Download className="h-4 w-4" /> Export</Button>
-            <Button size="sm"><Plus className="h-4 w-4" /> New PO</Button>
+            <Can module="procurement" action="create">
+              <Button variant="outline" size="sm" onClick={() => setSupplierOpen(true)}><UserPlus className="h-4 w-4" /> Add Supplier</Button>
+              <Button size="sm" onClick={() => setPoOpen(true)}><Plus className="h-4 w-4" /> New PO</Button>
+            </Can>
           </div>
         }
       />
@@ -150,6 +159,9 @@ export function ProcurementModule() {
           <DataTable data={suppliers} columns={supplierColumns} loading={loading} pageSize={12} searchPlaceholder="Search suppliers..." />
         </TabsContent>
       </Tabs>
+
+      <NewPODrawer open={poOpen} onOpenChange={setPoOpen} />
+      <SupplierFormDrawer open={supplierOpen} onOpenChange={setSupplierOpen} />
     </div>
   )
 }

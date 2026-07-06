@@ -14,6 +14,7 @@ import { fmtINR, fmtNumber, fmtDate, fmtDateTime, exportCSV, cn } from '@/shared
 import { AreaChartCard } from '@/shared/components/charts'
 import { NewOrderDrawer } from './new-order-drawer'
 import { useSalesOrders, useInvoices, usePayments, useAdvanceOrder } from '@/shared/services/mutations'
+import { Can } from '@/shared/hooks/use-permission'
 import type { SalesOrder, Invoice, Payment } from '@/shared/types'
 
 export function SalesModule() {
@@ -81,15 +82,17 @@ export function SalesModule() {
       key: 'actions', header: 'Actions', align: 'right',
       cell: (o) => (
         <div className="flex items-center justify-end gap-1">
-          {o.status !== 'delivered' && o.status !== 'cancelled' && (
-            <Button
-              variant="ghost" size="sm" className="h-7 px-2 text-xs"
-              onClick={(e) => { e.stopPropagation(); advanceOrder.mutate({ id: o.id, action: 'advance' }) }}
-              disabled={advanceOrder.isPending}
-            >
-              <ArrowRight className="h-3 w-3" /> {o.status === 'pending' ? 'Pack' : o.status === 'packed' ? 'Dispatch' : 'Deliver'}
-            </Button>
-          )}
+          <Can module="sales" action="edit">
+            {o.status !== 'delivered' && o.status !== 'cancelled' && (
+              <Button
+                variant="ghost" size="sm" className="h-7 px-2 text-xs"
+                onClick={(e) => { e.stopPropagation(); advanceOrder.mutate({ id: o.id, action: 'advance' }) }}
+                disabled={advanceOrder.isPending}
+              >
+                <ArrowRight className="h-3 w-3" /> {o.status === 'pending' ? 'Pack' : o.status === 'packed' ? 'Dispatch' : 'Deliver'}
+              </Button>
+            )}
+          </Can>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => { e.stopPropagation(); setSelectedOrder(o) }}>
             <FileText className="h-3 w-3" />
           </Button>
@@ -180,7 +183,9 @@ export function SalesModule() {
             <Button variant="outline" size="sm" onClick={() => exportCSV('sales-orders.csv', orders as any)}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm" onClick={() => setDrawerOpen(true)}><Plus className="h-4 w-4" /> New Order</Button>
+            <Can module="sales" action="create">
+              <Button size="sm" onClick={() => setDrawerOpen(true)}><Plus className="h-4 w-4" /> New Order</Button>
+            </Can>
           </div>
         }
       />

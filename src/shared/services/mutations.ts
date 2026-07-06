@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import { toast } from 'sonner'
+import type { SalesOrder } from '@/shared/types'
 
 // ─── Query hooks ───
 export const useDashboard = () => useQuery({ queryKey: ['dashboard'], queryFn: api.dashboard })
@@ -104,6 +105,30 @@ export function useCreateOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: any) => postJSON('/api/sales/orders', data),
+    onMutate: async (newOrder) => {
+      // Optimistic update: add to orders list immediately
+      await qc.cancelQueries({ queryKey: ['sales-orders'] })
+      const previousOrders = qc.getQueryData<SalesOrder[]>(['sales-orders'])
+      if (previousOrders) {
+        const optimistic: SalesOrder = {
+          id: `temp-${Date.now()}`,
+          orderNo: 'Creating...',
+          customerId: newOrder.customerId,
+          customer: { id: newOrder.customerId, businessName: '...', phone: '', area: '', district: '' },
+          status: 'pending',
+          paymentStatus: newOrder.paidNow > 0 ? 'partial' : 'unpaid',
+          subtotal: 0, tax: 0, discount: newOrder.discount || 0, total: 0, paid: newOrder.paidNow || 0,
+          profit: 0, itemsCount: newOrder.items?.length || 0, channel: newOrder.channel || 'direct',
+          notes: newOrder.notes, createdBy: newOrder.createdBy,
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }
+        qc.setQueryData(['sales-orders'], [optimistic, ...previousOrders])
+      }
+      return { previousOrders }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.previousOrders) qc.setQueryData(['sales-orders'], ctx.previousOrders)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sales-orders'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
@@ -113,7 +138,6 @@ export function useCreateOrder() {
       qc.invalidateQueries({ queryKey: ['customers'] })
       toast.success('Order created successfully')
     },
-    onError: (e: Error) => toast.error(e.message),
   })
 }
 
@@ -121,6 +145,24 @@ export function useAdvanceOrder() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'advance' | 'cancel' | 'reopen' }) => postJSON(`/api/sales/orders/${id}/advance`, { action }),
+    onMutate: async ({ id, action }) => {
+      await qc.cancelQueries({ queryKey: ['sales-orders'] })
+      const previous = qc.getQueryData<SalesOrder[]>(['sales-orders'])
+      if (previous) {
+        qc.setQueryData(['sales-orders'], previous.map((o) => {
+          if (o.id !== id) return o
+          const next = action === 'cancel' ? 'cancelled' :
+            o.status === 'pending' ? 'packed' :
+            o.status === 'packed' ? 'dispatched' :
+            o.status === 'dispatched' ? 'delivered' : o.status
+          return { ...o, status: next as any }
+        }))
+      }
+      return { previous }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(['sales-orders'], ctx.previous)
+    },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['sales-orders'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })
@@ -128,7 +170,6 @@ export function useAdvanceOrder() {
       qc.invalidateQueries({ queryKey: ['customer-orders'] })
       toast.success(vars.action === 'cancel' ? 'Order cancelled' : 'Order advanced')
     },
-    onError: (e: Error) => toast.error(e.message),
   })
 }
 

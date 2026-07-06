@@ -7,15 +7,19 @@ import { Badge, StatusBadge } from '@/shared/components/status-badge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Package, TrendingUp, DollarSign, Boxes, Plus, Download, Layers } from 'lucide-react'
+import { Package, TrendingUp, DollarSign, Boxes, Plus, Download, Layers, Pencil } from 'lucide-react'
 import { fmtINR, fmtNumber, exportCSV, abcColor } from '@/shared/lib/format'
 import { useProducts } from '@/shared/services/mutations'
+import { ProductFormDrawer } from './product-form-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { Product } from '@/shared/types'
 
 export function ProductsModule() {
   const { data: products = [], isLoading: loading } = useProducts()
   const [view, setView] = useState<'grid' | 'table'>('grid')
   const [cat, setCat] = useState<string>('all')
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<Product | null>(null)
 
   const cats = Array.from(new Set(products.map((p) => p.category?.name ?? 'Uncategorized')))
   const filtered = cat === 'all' ? products : products.filter((p) => (p.category?.name ?? 'Uncategorized') === cat)
@@ -86,7 +90,9 @@ export function ProductsModule() {
             <Button variant="outline" size="sm" onClick={() => exportCSV('products.csv', products as any)}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm"><Plus className="h-4 w-4" /> Add Product</Button>
+            <Can module="products" action="create">
+              <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true) }}><Plus className="h-4 w-4" /> Add Product</Button>
+            </Can>
             <div className="flex items-center gap-1 rounded-lg border p-0.5">
               <button onClick={() => setView('grid')} className={`px-2 py-1 text-xs rounded-md ${view === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Grid</button>
               <button onClick={() => setView('table')} className={`px-2 py-1 text-xs rounded-md ${view === 'table' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>Table</button>
@@ -156,6 +162,8 @@ export function ProductsModule() {
           ))}
         </div>
       )}
+
+      <ProductFormDrawer key={editing?.id ?? 'new'} open={formOpen} onOpenChange={setFormOpen} editing={editing} />
     </div>
   )
 }

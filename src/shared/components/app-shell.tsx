@@ -15,6 +15,8 @@ import { ThemeToggle } from './theme-toggle'
 import { SearchPalette } from './search-palette'
 import { api } from '@/shared/services/api'
 import { fmtRelative } from '@/shared/lib/format'
+import { useKeyboardShortcuts } from '@/shared/hooks/use-keyboard-shortcuts'
+import { useRealtimeNotifications } from '@/shared/hooks/use-realtime'
 import type { NotificationItem } from '@/shared/types'
 import { cn } from '@/lib/utils'
 
@@ -44,6 +46,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout, activeView, setView, sidebarCollapsed, toggleSidebar, searchOpen, setSearchOpen, notifOpen, setNotifOpen } = useApp()
   const [notifCount, setNotifCount] = useState(0)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  useKeyboardShortcuts()
+  const { connected: wsConnected } = useRealtimeNotifications()
 
   useEffect(() => {
     api.notifications().then((n) => {
@@ -154,8 +159,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Button>
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Gorakhpur, UP</span>
-              <span className="h-1 w-1 rounded-full bg-emerald-500 pulse-soft" />
-              <span className="text-xs text-muted-foreground">Live</span>
+              <span className={cn('h-1 w-1 rounded-full pulse-soft', wsConnected ? 'bg-emerald-500' : 'bg-amber-500')} />
+              <span className="text-xs text-muted-foreground">{wsConnected ? 'Live' : 'Connecting…'}</span>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -166,7 +171,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setSearchOpen(true)}
             >
               <Search className="h-4 w-4" />
-              <span className="text-xs">Search anything...</span>
+              <span className="text-xs">Search or jump to...</span>
               <kbd className="ml-auto text-[10px] px-1 py-0.5 rounded border bg-muted">⌘K</kbd>
             </Button>
             <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden" onClick={() => setSearchOpen(true)}>

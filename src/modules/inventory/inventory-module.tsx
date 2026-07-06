@@ -7,9 +7,11 @@ import { Badge, StatusBadge } from '@/shared/components/status-badge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Warehouse, Boxes, AlertTriangle, Calendar, Download, Plus, PackageCheck, TrendingDown, Sparkles, RefreshCw } from 'lucide-react'
+import { Warehouse, Boxes, AlertTriangle, Calendar, Download, Plus, PackageCheck, TrendingDown, Sparkles, RefreshCw, Settings } from 'lucide-react'
 import { fmtINR, fmtNumber, fmtDate, exportCSV, abcColor, daysUntil, cn } from '@/shared/lib/format'
 import { useInventory, useBatches, useReorderSuggestions, useGenerateInsights, useGenerateNotifications } from '@/shared/services/mutations'
+import { StockAdjustmentDrawer } from './stock-adjustment-drawer'
+import { Can } from '@/shared/hooks/use-permission'
 import type { Inventory, Batch } from '@/shared/types'
 
 export function InventoryModule() {
@@ -140,7 +142,9 @@ export function InventoryModule() {
             <Button variant="outline" size="sm" onClick={() => exportCSV('inventory.csv', inventory as any)}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            <Button size="sm"><Plus className="h-4 w-4" /> Stock Adjustment</Button>
+            <Can module="inventory" action="edit">
+              <Button size="sm" onClick={() => setAdjustOpen(true)}><Settings className="h-4 w-4" /> Stock Adjustment</Button>
+            </Can>
           </div>
         }
       />
