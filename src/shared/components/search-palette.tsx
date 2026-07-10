@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Users, Package, Warehouse, ShoppingCart, Truck, Banknote,
   Factory, BarChart3, FileText, Settings, Search, ArrowRight, Bell, TrendingUp,
   AlertTriangle, Plus, FileSpreadsheet, UserPlus, PackagePlus, ShoppingCart as CartIcon,
+  MapPin, CheckSquare, ArrowLeftRight,
 } from 'lucide-react'
 import { useApp } from '@/shared/lib/store'
 import { ModuleName } from '@/shared/lib/rbac'
@@ -25,13 +26,16 @@ const QUICK_ACTIONS = [
 const NAV_ITEMS: { id: ModuleName; label: string; icon: any; desc: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, desc: 'Executive KPIs & trends' },
   { id: 'crm', label: 'CRM', icon: Users, desc: 'Retailers & distributors' },
+  { id: 'sales', label: 'Sales', icon: ShoppingCart, desc: 'Orders & invoices' },
+  { id: 'visits', label: 'Visits', icon: MapPin, desc: 'Field activity tracking' },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, desc: 'Follow-ups & to-do' },
   { id: 'products', label: 'Products', icon: Package, desc: 'Catalog & pricing' },
   { id: 'inventory', label: 'Inventory', icon: Warehouse, desc: 'Stock & batches' },
-  { id: 'procurement', label: 'Procurement', icon: ShoppingCart, desc: 'Suppliers & POs' },
-  { id: 'sales', label: 'Sales', icon: TrendingUp, desc: 'Orders & invoices' },
-  { id: 'finance', label: 'Finance', icon: Banknote, desc: 'P&L & cash flow' },
+  { id: 'stock_movements', label: 'Stock Movements', icon: ArrowLeftRight, desc: 'Audit trail' },
+  { id: 'procurement', label: 'Procurement', icon: Truck, desc: 'Suppliers & POs' },
   { id: 'warehouse', label: 'Warehouse', icon: Truck, desc: 'Dispatch & returns' },
   { id: 'production', label: 'Production', icon: Factory, desc: 'Batches & yield' },
+  { id: 'finance', label: 'Finance', icon: Banknote, desc: 'P&L & cash flow' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, desc: 'Insights & forecasts' },
   { id: 'reports', label: 'Reports', icon: FileText, desc: 'PDF / Excel / CSV' },
   { id: 'settings', label: 'Settings', icon: Settings, desc: 'Users & RBAC' },

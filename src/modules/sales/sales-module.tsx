@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { ShoppingCart, TrendingUp, Wallet, Truck, Plus, Download, Receipt, IndianRupee, ArrowRight, X, FileText } from 'lucide-react'
+import { ShoppingCart, TrendingUp, Wallet, Truck, Plus, Download, Receipt, IndianRupee, ArrowRight, X, FileText, ArrowLeftRight } from 'lucide-react'
 import { fmtINR, fmtNumber, fmtDate, fmtDateTime, exportCSV, cn } from '@/shared/lib/format'
 import { AreaChartCard } from '@/shared/components/charts'
 import { NewOrderDrawer } from './new-order-drawer'
@@ -317,8 +317,16 @@ function OrderDetailDrawer({ order, onClose, onAdvance, onCancel }: { order: Sal
         </ScrollArea>
         <DrawerFooter className="border-t pt-4 flex-row justify-between gap-2">
           <div className="flex gap-2">
-            {order.status !== 'cancelled' && order.status !== 'delivered' && (
+            {order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'returned' && (
               <Button variant="outline" size="sm" onClick={() => onCancel(order.id)} className="text-rose-600"><X className="h-4 w-4" /> Cancel Order</Button>
+            )}
+            {order.status === 'delivered' && (
+              <Button variant="outline" size="sm" onClick={() => {
+                if (confirm('Process return? This will restore stock and create a credit note.')) {
+                  fetch(`/api/sales/orders/${order.id}/return`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'Customer return' }) })
+                    .then(() => { setSelectedOrder(null); window.location.reload() })
+                }
+              }} className="text-amber-600"><ArrowLeftRight className="h-4 w-4" /> Process Return</Button>
             )}
           </div>
           <div className="flex gap-2">

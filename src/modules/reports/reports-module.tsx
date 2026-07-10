@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/shared/components/status-badge'
 import { FileText, Download, FileSpreadsheet, File as FileIcon, Calendar, IndianRupee, TrendingUp, Package, Users, ShoppingCart } from 'lucide-react'
-import { exportCSV, exportJSON, fmtINR } from '@/shared/lib/format'
+import { exportCSV, exportJSON, exportXLSX, fmtINR } from '@/shared/lib/format'
 import { useSalesOrders, useCustomers, useProducts, useInventory, useSuppliers, usePurchaseOrders, useExpenses, usePNL } from '@/shared/services/mutations'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -50,6 +50,7 @@ export function ReportsModule() {
     }
     const filename = `${id}-${new Date().toISOString().slice(0, 10)}.${format}`
     if (format === 'csv') exportCSV(filename, payload)
+    else if (format === 'xlsx') exportXLSX(filename, payload, report.name)
     else exportJSON(filename, payload)
     toast({ title: `Exported ${report.name}`, description: `${filename} · ${payload.length} rows` })
   }
@@ -85,6 +86,9 @@ export function ReportsModule() {
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => exportReport(r.id, 'csv')}>
                   <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => exportReport(r.id, 'xlsx')}>
+                  <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
                 </Button>
                 <Button size="sm" variant="outline" className="flex-1 h-8" onClick={() => exportReport(r.id, 'json')}>
                   <Download className="h-3.5 w-3.5" /> JSON

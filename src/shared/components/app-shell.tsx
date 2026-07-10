@@ -5,7 +5,7 @@ import { visibleModules, ROLE_LABELS, type ModuleName } from '@/shared/lib/rbac'
 import {
   LayoutDashboard, Users, Package, Warehouse, ShoppingCart, Truck, Banknote,
   Factory, BarChart3, FileText, Settings, Menu, Bell, Search, ChevronLeft,
-  LogOut, Sparkles, X,
+  LogOut, Sparkles, X, MapPin, CheckSquare, ArrowLeftRight,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -24,8 +24,11 @@ const NAV: { id: ModuleName; label: string; icon: any; group: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Overview' },
   { id: 'crm', label: 'CRM', icon: Users, group: 'Sales' },
   { id: 'sales', label: 'Sales', icon: ShoppingCart, group: 'Sales' },
+  { id: 'visits', label: 'Visits', icon: MapPin, group: 'Sales' },
+  { id: 'tasks', label: 'Tasks', icon: CheckSquare, group: 'Sales' },
   { id: 'products', label: 'Products', icon: Package, group: 'Catalog' },
   { id: 'inventory', label: 'Inventory', icon: Warehouse, group: 'Catalog' },
+  { id: 'stock_movements', label: 'Stock Movements', icon: ArrowLeftRight, group: 'Catalog' },
   { id: 'procurement', label: 'Procurement', icon: Truck, group: 'Catalog' },
   { id: 'warehouse', label: 'Warehouse', icon: Truck, group: 'Ops' },
   { id: 'production', label: 'Production', icon: Factory, group: 'Ops' },

@@ -120,6 +120,26 @@ export function ProcurementModule() {
       key: 'status', header: 'Status', align: 'center',
       cell: (p) => <StatusBadge status={p.status} />,
     },
+    {
+      key: 'actions', header: '', align: 'right',
+      cell: (p) => (
+        (p.status === 'sent' || p.status === 'partial') ? (
+          <Button
+            variant="outline" size="sm" className="h-7 text-xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              fetch(`/api/procurement/orders/${p.id}/receive`, { method: 'POST' })
+                .then((r) => r.json())
+                .then(() => {
+                  window.location.reload()
+                })
+            }}
+          >
+            Receive (GRN)
+          </Button>
+        ) : null
+      ),
+    },
   ]
 
   return (

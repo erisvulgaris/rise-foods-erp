@@ -6,6 +6,7 @@ import type { ModuleName } from '@/shared/lib/rbac'
 const SHORTCUTS: Record<string, ModuleName> = {
   d: 'dashboard', c: 'crm', s: 'sales', p: 'products', i: 'inventory',
   o: 'procurement', w: 'warehouse', f: 'finance', a: 'analytics', r: 'reports', x: 'settings',
+  v: 'visits', t: 'tasks', m: 'stock_movements',
 }
 
 export function useKeyboardShortcuts() {

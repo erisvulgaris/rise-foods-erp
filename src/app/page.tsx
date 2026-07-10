@@ -13,6 +13,9 @@ import { AnalyticsModule } from '@/modules/analytics/analytics-module'
 import { ReportsModule } from '@/modules/reports/reports-module'
 import { SettingsModule } from '@/modules/settings/settings-module'
 import { ProductionModule, WarehouseModule } from '@/modules/production/production-module'
+import { VisitsModule } from '@/modules/visits/visits-module'
+import { TasksModule } from '@/modules/tasks/tasks-module'
+import { StockMovementsModule } from '@/modules/stock-movements/stock-movements-module'
 
 export default function Home() {
   const { user, activeView } = useApp()
@@ -33,6 +36,9 @@ export default function Home() {
       {activeView === 'settings' && <SettingsModule />}
       {activeView === 'production' && <ProductionModule />}
       {activeView === 'warehouse' && <WarehouseModule />}
+      {activeView === 'visits' && <VisitsModule />}
+      {activeView === 'tasks' && <TasksModule />}
+      {activeView === 'stock_movements' && <StockMovementsModule />}
     </AppShell>
   )
 }

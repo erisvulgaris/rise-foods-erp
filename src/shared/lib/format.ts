@@ -138,3 +138,19 @@ export const exportJSON = (filename: string, data: unknown) => {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// ─── Excel (.xlsx) export ───
+export const exportXLSX = async (filename: string, rows: Record<string, unknown>[], sheetName = 'Sheet1') => {
+  if (!rows.length) return
+  const XLSX = await import('xlsx')
+  const ws = XLSX.utils.json_to_sheet(rows)
+  // Auto-size columns
+  const colWidths = Object.keys(rows[0]).map((key) => {
+    const maxLen = Math.max(key.length, ...rows.map((r) => String(r[key] ?? '').length))
+    return { wch: Math.min(Math.max(maxLen + 2, 10), 50) }
+  })
+  ws['!cols'] = colWidths
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, sheetName)
+  XLSX.writeFile(wb, filename)
+}
