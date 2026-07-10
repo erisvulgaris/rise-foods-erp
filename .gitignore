@@ -90,3 +90,4 @@ Caddyfile
 
 # Bun lock (keep if you want reproducible installs)
 # bun.lock
+.env
