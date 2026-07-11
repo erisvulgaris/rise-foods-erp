@@ -17,6 +17,7 @@ import { api } from '@/shared/services/api'
 import { fmtRelative } from '@/shared/lib/format'
 import { useKeyboardShortcuts } from '@/shared/hooks/use-keyboard-shortcuts'
 import { useRealtimeNotifications } from '@/shared/hooks/use-realtime'
+import { OfflineIndicator } from '@/shared/components/enterprise/offline-indicator'
 import type { NotificationItem } from '@/shared/types'
 import { cn } from '@/lib/utils'
 
@@ -282,6 +283,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </AnimatePresence>
 
       <SearchPalette />
+      <OfflineIndicator />
     </div>
   )
 }
