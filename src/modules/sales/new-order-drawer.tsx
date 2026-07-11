@@ -1,22 +1,17 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { FormDrawer, Field, FormGrid } from '@/shared/components/form-drawer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/shared/components/status-badge'
-import { Plus, Trash2, Minus, ShoppingCart, Search, User, Package } from 'lucide-react'
+import { Plus, Trash2, Minus, ShoppingCart, AlertTriangle, Save, FileText, Package } from 'lucide-react'
 import { fmtINR, cn } from '@/shared/lib/format'
-import { useProducts, useCustomers, useCreateOrder } from '@/shared/services/mutations'
+import { useProducts, useCustomers, useInventory, useCreateOrder } from '@/shared/services/mutations'
 import { useApp } from '@/shared/lib/store'
+import { CustomerPicker, ProductPicker } from '@/shared/components/entity-picker'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import {
-  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Product, Customer } from '@/shared/types'
 
 interface CartItem {
@@ -25,35 +20,75 @@ interface CartItem {
   unitPrice: number
   unitCost: number
   taxPercent: number
+  batchNo?: string
 }
 
 export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenChange: (b: boolean) => void }) {
   const { user } = useApp()
   const { data: products = [] } = useProducts()
   const { data: customers = [] } = useCustomers()
+  const { data: inventory = [] } = useInventory()
   const createOrder = useCreateOrder()
 
   const [customerId, setCustomerId] = useState<string>('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [discount, setDiscount] = useState(0)
+  const [discountType, setDiscountType] = useState<'flat' | 'percent'>('flat')
+  const [roundOff, setRoundOff] = useState(true)
   const [channel, setChannel] = useState('direct')
   const [notes, setNotes] = useState('')
   const [paidNow, setPaidNow] = useState(0)
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'upi' | 'bank' | 'cheque' | 'credit'>('cash')
   const [paymentReference, setPaymentReference] = useState('')
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [productSearch, setProductSearch] = useState('')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [justAddedProductId, setJustAddedProductId] = useState<string | null>(null)
 
   const selectedCustomer = customers.find((c) => c.id === customerId)
 
-  const filteredCustomers = customerSearch
-    ? customers.filter((c) => c.businessName.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone.includes(customerSearch) || c.area.toLowerCase().includes(customerSearch.toLowerCase()))
-    : customers
+  const totals = useMemo(() => {
+    const subtotal = cart.reduce((s, x) => s + x.quantity * x.unitPrice, 0)
+    const discountAmount = discountType === 'percent' ? (subtotal * discount) / 100 : discount
+    const afterDiscount = subtotal - discountAmount
+    const taxableAmount = afterDiscount
+    const tax = cart.reduce((s, x) => {
+      const lineTaxable = (x.quantity * x.unitPrice) - (discountAmount * (x.quantity * x.unitPrice) / subtotal)
+      return s + lineTaxable * (x.taxPercent / 100)
+    }, 0)
+    const total = afterDiscount + tax
+    const roundedTotal = roundOff ? Math.round(total) : total
+    const roundOffAmount = roundedTotal - total
+    const profit = cart.reduce((s, x) => s + (x.unitPrice - x.unitCost) * x.quantity, 0) - discountAmount
+    return { subtotal, discountAmount, taxableAmount, tax, total: roundedTotal, roundOffAmount, profit, afterDiscount }
+  }, [cart, discount, discountType, roundOff])
 
-  const filteredProducts = productSearch
-    ? products.filter((p) => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.sku.toLowerCase().includes(productSearch.toLowerCase()))
-    : products
+  // ─── Validations ───
+  const validationErrors = useMemo(() => {
+    const errs: Record<string, string> = {}
+    if (!customerId) errs.customer = 'Customer is required'
+    if (cart.length === 0) errs.cart = 'Add at least one product'
+    if (selectedCustomer?.status === 'blocked') errs.customer = 'Cannot create order for blocked customer'
+    if (selectedCustomer && selectedCustomer.outstanding + totals.total > selectedCustomer.creditLimit && selectedCustomer.creditLimit > 0 && paymentMethod === 'credit') {
+      errs.credit = `Credit limit exceeded (₹${(selectedCustomer.outstanding + totals.total).toLocaleString('en-IN')} > ₹${selectedCustomer.creditLimit.toLocaleString('en-IN')})`
+    }
+    // Check for duplicate products
+    const productIds = cart.map((x) => x.product.id)
+    const dups = productIds.filter((id, i) => productIds.indexOf(id) !== i)
+    if (dups.length > 0) errs.duplicate = 'Duplicate product in cart'
+    // Check stock
+    cart.forEach((item) => {
+      const inv = inventory.find((i) => i.productId === item.product.id)
+      if (inv && item.quantity > inv.currentStock) {
+        errs[`stock_${item.product.id}`] = `Only ${inv.currentStock} in stock (requested ${item.quantity})`
+      }
+    })
+    // Check zero/negative
+    cart.forEach((item) => {
+      if (item.quantity <= 0) errs[`qty_${item.product.id}`] = 'Quantity must be positive'
+    })
+    return errs
+  }, [customerId, cart, selectedCustomer, inventory, totals.total, paymentMethod])
 
+  // ─── Cart operations ───
   const addToCart = (product: Product) => {
     setCart((c) => {
       const existing = c.find((x) => x.product.id === product.id)
@@ -63,6 +98,7 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
       const unitPrice = selectedCustomer?.type === 'distributor' ? product.distributorPrice : product.wholesalePrice
       return [...c, { product, quantity: 1, unitPrice, unitCost: product.costPrice, taxPercent: product.gstRate }]
     })
+    setJustAddedProductId(product.id)
   }
 
   const updateQty = (productId: string, qty: number) => {
@@ -76,18 +112,14 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
 
   const removeItem = (productId: string) => setCart((c) => c.filter((x) => x.product.id !== productId))
 
-  const totals = useMemo(() => {
-    const subtotal = cart.reduce((s, x) => s + x.quantity * x.unitPrice, 0)
-    const afterDiscount = subtotal - discount
-    const tax = +(afterDiscount * 0.05).toFixed(2)
-    const total = +(afterDiscount + tax).toFixed(2)
-    const profit = cart.reduce((s, x) => s + (x.unitPrice - x.unitCost) * x.quantity, 0)
-    return { subtotal, tax, total, profit, afterDiscount }
-  }, [cart, discount])
+  // Reset on close — use key prop on parent to remount instead of effect
+  // (handled by parent component remounting the drawer)
 
   const handleSubmit = async () => {
-    if (!customerId) return
-    if (cart.length === 0) return
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
     await createOrder.mutateAsync({
       customerId,
       salesmanId: user?.id,
@@ -95,18 +127,29 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
         productId: x.product.id, quantity: x.quantity,
         unitPrice: x.unitPrice, unitCost: x.unitCost, taxPercent: x.taxPercent, discount: 0,
       })),
-      discount, channel, notes,
+      discount: totals.discountAmount, channel, notes,
       paidNow: paymentMethod === 'credit' ? 0 : paidNow,
       paymentMethod: paymentMethod === 'credit' ? undefined : paymentMethod,
       paymentReference: paymentReference || undefined,
       createdBy: user?.id,
     })
-    // Reset
     setCustomerId(''); setCart([]); setDiscount(0); setNotes(''); setPaidNow(0); setPaymentReference('')
     onOpenChange(false)
   }
 
-  const canSubmit = customerId && cart.length > 0 && !createOrder.isPending
+  // Keyboard: Ctrl+Enter to submit
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && open) {
+        e.preventDefault()
+        handleSubmit()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, handleSubmit])
+
+  const canSubmit = customerId && cart.length > 0 && Object.keys(validationErrors).length === 0 && !createOrder.isPending
 
   return (
     <FormDrawer
@@ -120,7 +163,8 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={!canSubmit}>
             <ShoppingCart className="h-4 w-4" />
-            {createOrder.isPending ? 'Creating...' : `Place Order · ${fmtINR(totals.total)}`}
+            {createOrder.isPending ? 'Creating...' : `Place Order · ${fmtINR(totals.total, true)}`}
+            <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-primary-foreground/20">⌘↵</kbd>
           </Button>
         </>
       }
@@ -131,80 +175,48 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
           <h3 className="text-sm font-semibold">Customer</h3>
           {selectedCustomer ? (
             <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/40">
-              <div>
-                <p className="text-sm font-medium">{selectedCustomer.businessName}</p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{selectedCustomer.businessName}</p>
+                  <Badge variant="outline" className="capitalize">{selectedCustomer.type}</Badge>
+                  {selectedCustomer.status === 'blocked' && <Badge variant="danger">BLOCKED</Badge>}
+                </div>
                 <p className="text-xs text-muted-foreground">{selectedCustomer.area} · {selectedCustomer.phone}</p>
+                <div className="flex items-center gap-3 mt-1 text-xs">
+                  <span className={cn('font-medium', selectedCustomer.outstanding > 0 ? 'text-rose-600' : 'text-emerald-600')}>
+                    Outstanding: {fmtINR(selectedCustomer.outstanding, true)}
+                  </span>
+                  <span className="text-muted-foreground">Credit: {fmtINR(selectedCustomer.creditLimit, true)}</span>
+                  <span className="text-muted-foreground">Risk: {selectedCustomer.riskScore.toFixed(0)}/100</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="capitalize">{selectedCustomer.type}</Badge>
-                <Badge variant={selectedCustomer.outstanding > selectedCustomer.creditLimit * 0.8 ? 'danger' : 'success'}>
-                  Outstanding {fmtINR(selectedCustomer.outstanding, true)}
-                </Badge>
-                <Button variant="ghost" size="sm" onClick={() => setCustomerId('')}>Change</Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={() => setCustomerId('')}>Change</Button>
             </div>
           ) : (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start h-10">
-                  <User className="h-4 w-4" />
-                  <span className="text-muted-foreground">Select customer...</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search by name, phone, area..." value={customerSearch} onValueChange={setCustomerSearch} />
-                  <CommandList>
-                    <CommandEmpty>No customers found.</CommandEmpty>
-                    <CommandGroup>
-                      {filteredCustomers.slice(0, 20).map((c) => (
-                        <CommandItem key={c.id} onSelect={() => setCustomerId(c.id)}>
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{c.businessName}</p>
-                            <p className="text-xs text-muted-foreground">{c.area} · {c.phone}</p>
-                          </div>
-                          <Badge variant="outline" className="capitalize">{c.type}</Badge>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <CustomerPicker
+              customers={customers}
+              value={customerId}
+              onChange={setCustomerId}
+            />
+          )}
+          {validationErrors.customer && (
+            <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> {validationErrors.customer}</p>
           )}
         </div>
 
         {/* Product search */}
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">Add Products</h3>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start h-10">
-                <Plus className="h-4 w-4" />
-                <span className="text-muted-foreground">Search products to add...</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search by name or SKU..." value={productSearch} onValueChange={setProductSearch} />
-                <CommandList>
-                  <CommandEmpty>No products found.</CommandEmpty>
-                  <CommandGroup>
-                    {filteredProducts.slice(0, 20).map((p) => (
-                      <CommandItem key={p.id} onSelect={() => addToCart(p)} disabled={cart.some((x) => x.product.id === p.id)}>
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{p.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{p.sku} · {p.packagingSize}</p>
-                        </div>
-                        <span className="text-sm font-medium">{fmtINR(p.wholesalePrice)}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <ProductPicker
+            products={products}
+            inventory={inventory}
+            value={null}
+            onChange={(id) => {
+              const p = products.find((x) => x.id === id)
+              if (p) addToCart(p)
+            }}
+            excludeIds={cart.map((x) => x.product.id)}
+          />
         </div>
 
         {/* Cart */}
@@ -214,6 +226,9 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
               <h3 className="text-sm font-semibold">Cart ({cart.length} items)</h3>
               <Button variant="ghost" size="sm" onClick={() => setCart([])}><Trash2 className="h-3 w-3" /> Clear</Button>
             </div>
+            {validationErrors.duplicate && (
+              <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> {validationErrors.duplicate}</p>
+            )}
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40">
@@ -221,51 +236,75 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
                     <th className="text-left px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Item</th>
                     <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Qty</th>
                     <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Price</th>
+                    <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">GST</th>
                     <th className="text-right px-3 py-2 text-xs font-medium uppercase text-muted-foreground">Total</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {cart.map((item) => (
-                    <tr key={item.product.id} className="border-t">
-                      <td className="px-3 py-2">
-                        <p className="text-sm font-medium">{item.product.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{item.product.sku}</p>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, item.quantity - 1)}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
+                  {cart.map((item) => {
+                    const inv = inventory.find((i) => i.productId === item.product.id)
+                    const isOutOfStock = inv && item.quantity > inv.currentStock
+                    return (
+                      <tr key={item.product.id} className={cn('border-t', justAddedProductId === item.product.id && 'bg-primary/5 animate-pulse')}>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded bg-orange-500/10 text-orange-600 shrink-0">
+                              <Package className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">{item.product.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono">{item.product.sku}</span>
+                                <span>·</span>
+                                <span>Stock: {inv?.currentStock ?? 0}</span>
+                                <span>·</span>
+                                <span className="text-emerald-600">{item.product.marginPercent.toFixed(0)}% margin</span>
+                              </div>
+                            </div>
+                          </div>
+                          {validationErrors[`stock_${item.product.id}`] && (
+                            <p className="text-[10px] text-rose-600 mt-1 flex items-center gap-1"><AlertTriangle className="h-2.5 w-2.5" /> {validationErrors[`stock_${item.product.id}`]}</p>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="inline-flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, item.quantity - 1)}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => updateQty(item.product.id, parseInt(e.target.value) || 0)}
+                              className={cn('h-7 w-14 text-center px-1', isOutOfStock && 'border-rose-500')}
+                            />
+                            <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, item.quantity + 1)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right">
                           <Input
                             type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateQty(item.product.id, parseInt(e.target.value) || 0)}
-                            className="h-7 w-14 text-center px-1"
+                            value={item.unitPrice}
+                            onChange={(e) => updatePrice(item.product.id, parseFloat(e.target.value) || 0)}
+                            className="h-7 w-20 text-right px-1"
                           />
-                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, item.quantity + 1)}>
-                            <Plus className="h-3 w-3" />
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <span className="text-xs tabular-nums text-muted-foreground">{item.taxPercent}%</span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <span className="font-medium tabular-nums">{fmtINR(item.quantity * item.unitPrice)}</span>
+                        </td>
+                        <td className="px-2">
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500" onClick={() => removeItem(item.product.id)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <Input
-                          type="number"
-                          value={item.unitPrice}
-                          onChange={(e) => updatePrice(item.product.id, parseFloat(e.target.value) || 0)}
-                          className="h-7 w-20 text-right px-1"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <span className="font-medium tabular-nums">{fmtINR(item.quantity * item.unitPrice)}</span>
-                      </td>
-                      <td className="px-2">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-rose-500" onClick={() => removeItem(item.product.id)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -278,7 +317,16 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
             <div className="space-y-3">
               <h3 className="text-sm font-semibold">Order Details</h3>
               <FormGrid cols={2}>
-                <Field label="Discount (₹)">
+                <Field label="Discount Type">
+                  <Select value={discountType} onValueChange={(v: any) => setDiscountType(v)}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="flat">Flat (₹)</SelectItem>
+                      <SelectItem value="percent">Percent (%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label={`Discount ${discountType === 'percent' ? '(%)' : '(₹)'}`}>
                   <Input type="number" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} className="h-9" />
                 </Field>
                 <Field label="Channel">
@@ -289,6 +337,15 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
                       <SelectItem value="portal">Portal</SelectItem>
                       <SelectItem value="whatsapp">WhatsApp</SelectItem>
                       <SelectItem value="phone">Phone</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Round Off">
+                  <Select value={roundOff ? 'yes' : 'no'} onValueChange={(v) => setRoundOff(v === 'yes')}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>
@@ -321,18 +378,34 @@ export function NewOrderDrawer({ open, onOpenChange }: { open: boolean; onOpenCh
                   <Input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="UTR / Cheque no." className="h-9" />
                 </Field>
               )}
+              {validationErrors.credit && (
+                <p className="text-xs text-rose-600 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> {validationErrors.credit}</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Summary */}
+        {/* Summary with tax breakup */}
         {cart.length > 0 && (
           <div className="rounded-lg bg-muted/40 p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal</span><span className="tabular-nums">{fmtINR(totals.subtotal)}</span></div>
-            {discount > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount</span><span className="tabular-nums text-rose-600">-{fmtINR(discount)}</span></div>}
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST (5%)</span><span className="tabular-nums">{fmtINR(totals.tax)}</span></div>
+            {totals.discountAmount > 0 && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Discount ({discountType === 'percent' ? `${discount}%` : 'flat'})</span><span className="tabular-nums text-rose-600">-{fmtINR(totals.discountAmount)}</span></div>}
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Taxable Amount</span><span className="tabular-nums">{fmtINR(totals.taxableAmount)}</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">GST</span><span className="tabular-nums">{fmtINR(totals.tax)}</span></div>
+            {roundOff && totals.roundOffAmount !== 0 && (
+              <div className="flex justify-between text-xs"><span className="text-muted-foreground">Round Off</span><span className="tabular-nums text-muted-foreground">{totals.roundOffAmount > 0 ? '+' : ''}{fmtINR(totals.roundOffAmount)}</span></div>
+            )}
             <div className="flex justify-between text-base font-semibold pt-2 border-t"><span>Total</span><span className="tabular-nums">{fmtINR(totals.total)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Estimated Profit</span><span className="tabular-nums text-emerald-600 dark:text-emerald-400">{fmtINR(totals.profit)}</span></div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+              <div className="text-center p-2 rounded-lg bg-emerald-500/10">
+                <p className="text-[10px] text-muted-foreground uppercase">Profit</p>
+                <p className="text-sm font-semibold text-emerald-600 tabular-nums">{fmtINR(totals.profit, true)}</p>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-sky-500/10">
+                <p className="text-[10px] text-muted-foreground uppercase">Margin %</p>
+                <p className="text-sm font-semibold text-sky-600 tabular-nums">{totals.total > 0 ? ((totals.profit / totals.total) * 100).toFixed(1) : 0}%</p>
+              </div>
+            </div>
             {paymentMethod !== 'credit' && paidNow > 0 && (
               <div className="flex justify-between text-sm pt-2 border-t"><span className="text-muted-foreground">Balance Due</span><span className="tabular-nums text-amber-600">{fmtINR(totals.total - paidNow)}</span></div>
             )}
