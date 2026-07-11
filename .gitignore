@@ -1,93 +1,14 @@
-# Dependencies
+skills/
 node_modules/
-.pnp
-.pnp.js
 
-# Next.js
+# Next.js build output
 .next/
-out/
-build/
-dist/
 
-# Production
-*.tsbuildinfo
-next-env.d.ts
-
-# Environment
+# Env
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Database
-*.db
-*.db-journal
-db/
-
-# Logs
-*.log
-dev.log
-server.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage
-coverage/
-*.lcov
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Misc
-*.tgz
-.cache/
-.turbo/
-
-# Z-AI sandbox scripts (not needed in repo)
-.zscripts/
-.zscripts/dev.log
-.zscripts/dev.pid
 
 # Tool results
 tool-results/
-
-# Upload (user-provided files)
-upload/
-
-# Download (generated previews)
-download/
-
-# Mini service logs
-mini-services/*/node_modules/
-mini-services/*/bun.lock
-
-# Skills (Z-AI sandbox skill files — not part of the ERP project)
-skills/
-
-# Examples (sandbox examples)
-examples/
-
-# Caddyfile (sandbox gateway config)
-Caddyfile
-
-# Components JSON (sandbox scaffold config — keep if customized)
-# components.json
-
-# Bun lock (keep if you want reproducible installs)
-# bun.lock
-.env
+db/custom.db
+dev.log
+.zscripts/
